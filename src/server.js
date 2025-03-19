@@ -1,6 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 require('dotenv').config();
 const Jwt = require('@hapi/jwt');
+const path = require('path');
+const Inert = require('@hapi/inert');
 
 const Hapi = require('@hapi/hapi');
 const NotesService = require('./services/postgres/NotesService');
@@ -8,16 +10,19 @@ const UsersService = require('./services/postgres/UsersService');
 const AuthenticationsService = require('./services/postgres/AuthenticationsService');
 const CollaborationsService = require('./services/postgres/CollaborationsService');
 const ProducerService = require('./services/rabbitmq/ProducerService');
+const StorageService = require('./services/storage/StorageService');
 const notes = require('./api/notes');
 const users = require('./api/users');
 const authentications = require('./api/authentications');
 const collaborations = require('./api/collaborations');
 const _exports = require('./api/exports');
+const uploads = require('./api/uploads');
 const NotesValidator = require('./validator/notes');
 const UsersValidator = require('./validator/users');
 const AuthenticationsValidator = require('./validator/authentications');
 const CollaborationsValidator = require('./validator/collaborations');
 const ExportsValidator = require('./validator/exports');
+const UploadsValidator = require('./validator/uploads');
 const ClientError = require('./exceptions/ClientError');
 
 const TokenManager = require('./tokenize/TokenManager');
@@ -27,6 +32,7 @@ const init = async () => {
   const notesService = new NotesService(collaborationsService);
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
+  const storageService = new StorageService(path.resolve(__dirname, 'api/uploads/file/images'));
 
   const server = Hapi.server({
     port: process.env.PORT,
@@ -41,6 +47,9 @@ const init = async () => {
   await server.register([
     {
       plugin: Jwt,
+    },
+    {
+      plugin: Inert,
     },
   ]);
 
@@ -97,6 +106,13 @@ const init = async () => {
       options: {
         service: ProducerService,
         validator: ExportsValidator,
+      },
+    },
+    {
+      plugin: uploads,
+      options: {
+        service: storageService,
+        validator: UploadsValidator,
       },
     },
   ]);
